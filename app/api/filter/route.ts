@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
         };
     }
     try {
-        // @ts-ignore
+        // @ts-expect-error
         await import('pdfjs-dist/build/pdf.worker.mjs');
 
         const form = await req.formData();
