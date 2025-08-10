@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
         };
     }
     try {
-        // @ts-expect-error
+        // @ts-expect-error - pdfjs-dist is not typed
         await import('pdfjs-dist/build/pdf.worker.mjs');
 
         const form = await req.formData();
