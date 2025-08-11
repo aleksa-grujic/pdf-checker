@@ -38,8 +38,8 @@ export async function POST(req: NextRequest) {
 
         const form = await req.formData();
         const file = form.get("file");
-        const termsRaw = (form.get("terms") as string) || "";
-        const mode = ((form.get("mode") as string) || "any").toLowerCase();
+        const requiredTermsRaw = (form.get("requiredTerms") as string) || "[]";
+        const optionalTermsRaw = (form.get("optionalTerms") as string) || "[]";
         const preview = form.get("preview") === "1";
 
         if (!file || typeof (file as Blob).arrayBuffer !== "function") {
@@ -52,8 +52,23 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const terms = parseTerms(termsRaw);
-        if (terms.length === 0) {
+        let requiredTerms: string[] = [];
+        let optionalTerms: string[] = [];
+
+        try {
+            requiredTerms = JSON.parse(requiredTermsRaw).map((term: string) => normalize(term));
+            optionalTerms = JSON.parse(optionalTermsRaw).map((term: string) => normalize(term));
+        } catch {
+            return new Response(
+                JSON.stringify({ message: "Neispravni parametri pretrage." }),
+                {
+                    status: 400,
+                    headers: { "Content-Type": "application/json; charset=utf-8" },
+                }
+            );
+        }
+
+        if (requiredTerms.length === 0 && optionalTerms.length === 0) {
             return new Response(
                 JSON.stringify({ message: "Unesite bar jedan pojam za pretragu." }),
                 {
@@ -89,10 +104,15 @@ export async function POST(req: NextRequest) {
                     )
                     .join(" ")
             );
-            const hasMatch =
-                mode === "all"
-                    ? terms.every((t) => text.includes(t))
-                    : terms.some((t) => text.includes(t));
+            // Check if all required terms are present
+            const hasAllRequired = requiredTerms.length === 0 || requiredTerms.every((t) => text.includes(t));
+
+            // Check if at least one optional term is present (if any optional terms exist)
+            const hasAnyOptional = optionalTerms.length === 0 || optionalTerms.some((t) => text.includes(t));
+
+            // Page matches if it has all required terms AND (has any optional term OR no optional terms exist)
+            const hasMatch = hasAllRequired && hasAnyOptional;
+
             if (hasMatch) matchingIndexes.push(i - 1);
         }
 
@@ -115,8 +135,6 @@ export async function POST(req: NextRequest) {
                 }
             );
         }
-
-        console.log('Na stranicama: ', matchingIndexes);
 
         const srcPdf = await PDFDocument.load(arrayBufferRaw);
         const outPdf = await PDFDocument.create();
