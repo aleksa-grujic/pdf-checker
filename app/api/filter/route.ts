@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
 
         if (preview) {
             // Get text snippets from matching pages for preview
-            const pageSnippets: Array<{ pageNumber: number; textSnippet: string }> = [];
+            const pageSnippets: Array<{ pageNumber: number; textSnippet: string; termOrder: number }> = [];
 
             for (const pageIndex of matchingIndexes) {
                 const page = await pdf.getPage(pageIndex + 1);
@@ -133,6 +133,25 @@ export async function POST(req: NextRequest) {
                     )
                     .join(" ");
 
+                // Find the earliest occurrence of any term on this page
+                let earliestTermPosition = Infinity;
+
+                // Check required terms first
+                for (const term of requiredTerms) {
+                    const position = fullText.toLowerCase().indexOf(term);
+                    if (position !== -1 && position < earliestTermPosition) {
+                        earliestTermPosition = position;
+                    }
+                }
+
+                // Check optional terms if no required terms found or if they appear later
+                for (const term of optionalTerms) {
+                    const position = fullText.toLowerCase().indexOf(term);
+                    if (position !== -1 && position < earliestTermPosition) {
+                        earliestTermPosition = position;
+                    }
+                }
+
                 // Create a snippet (first 200 characters)
                 const snippet = fullText.length > 200
                     ? fullText.substring(0, 200) + "..."
@@ -140,21 +159,34 @@ export async function POST(req: NextRequest) {
 
                 pageSnippets.push({
                     pageNumber: pageIndex + 1,
-                    textSnippet: snippet
+                    textSnippet: snippet,
+                    termOrder: earliestTermPosition
                 });
             }
 
-            // Create a preview PDF with only matching pages
+            // Sort pages by the order in which terms appear
+            pageSnippets.sort((a, b) => a.termOrder - b.termOrder);
+
+            // Remove termOrder from the final response
+            const finalPageSnippets = pageSnippets.map(({ pageNumber, textSnippet }) => ({
+                pageNumber,
+                textSnippet
+            }));
+
+            // Create a preview PDF with only matching pages in the correct order
             const srcPdf = await PDFDocument.load(arrayBufferRaw);
             const previewPdf = await PDFDocument.create();
-            const copiedPages = await previewPdf.copyPages(srcPdf, matchingIndexes);
+
+            // Get pages in the sorted order
+            const sortedPageIndexes = pageSnippets.map(p => p.pageNumber - 1);
+            const copiedPages = await previewPdf.copyPages(srcPdf, sortedPageIndexes);
             copiedPages.forEach((p) => previewPdf.addPage(p));
             const previewBytes = await previewPdf.save();
 
             return new Response(
                 JSON.stringify({
                     count: matchingIndexes.length,
-                    pages: pageSnippets,
+                    pages: finalPageSnippets,
                     totalPages: numPages,
                     previewPdf: Buffer.from(previewBytes).toString('base64')
                 }),
@@ -165,9 +197,52 @@ export async function POST(req: NextRequest) {
             );
         }
 
+        // For download, also sort pages by term order
+        const pageOrderMap = new Map<number, number>();
+
+        // Get term order for each matching page
+        for (const pageIndex of matchingIndexes) {
+            const page = await pdf.getPage(pageIndex + 1);
+            const textContent = await page.getTextContent();
+            const fullText = textContent.items
+                .map((item: unknown) =>
+                    item && typeof item === "object" && "str" in item && typeof (item as { str?: unknown }).str === "string"
+                        ? (item as { str: string }).str
+                        : ""
+                )
+                .join(" ");
+
+            let earliestTermPosition = Infinity;
+
+            // Check required terms first
+            for (const term of requiredTerms) {
+                const position = fullText.toLowerCase().indexOf(term);
+                if (position !== -1 && position < earliestTermPosition) {
+                    earliestTermPosition = position;
+                }
+            }
+
+            // Check optional terms if no required terms found or if they appear later
+            for (const term of optionalTerms) {
+                const position = fullText.toLowerCase().indexOf(term);
+                if (position !== -1 && position < earliestTermPosition) {
+                    earliestTermPosition = position;
+                }
+            }
+
+            pageOrderMap.set(pageIndex, earliestTermPosition);
+        }
+
+        // Sort matching indexes by term order
+        const sortedMatchingIndexes = matchingIndexes.sort((a, b) => {
+            const orderA = pageOrderMap.get(a) ?? Infinity;
+            const orderB = pageOrderMap.get(b) ?? Infinity;
+            return orderA - orderB;
+        });
+
         const srcPdf = await PDFDocument.load(arrayBufferRaw);
         const outPdf = await PDFDocument.create();
-        const copiedPages = await outPdf.copyPages(srcPdf, matchingIndexes);
+        const copiedPages = await outPdf.copyPages(srcPdf, sortedMatchingIndexes);
         copiedPages.forEach((p) => outPdf.addPage(p));
         const outBytes = await outPdf.save();
 

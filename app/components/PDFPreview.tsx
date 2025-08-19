@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-
 interface PageInfo {
     pageNumber: number;
     textSnippet: string;
@@ -16,8 +14,6 @@ interface PDFPreviewProps {
 }
 
 export default function PDFPreview({ pages, totalPages, count, previewPdf, onClose }: PDFPreviewProps) {
-    const [activeTab, setActiveTab] = useState<'text' | 'pdf'>('text');
-
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
@@ -30,7 +26,7 @@ export default function PDFPreview({ pages, totalPages, count, previewPdf, onClo
                                 Preview rezultata
                             </h2>
                             <p className="text-gray-600 dark:text-gray-300">
-                                Pronađeno {count} stranica od ukupno {totalPages}
+                                Pronađeno {count} stranica od ukupno {totalPages} (sortirano po redosledu termina)
                             </p>
                         </div>
                     </div>
@@ -88,7 +84,7 @@ export default function PDFPreview({ pages, totalPages, count, previewPdf, onClo
                                         Stranica {page.pageNumber}
                                     </div>
                                     <span className="text-gray-500 dark:text-gray-400 text-sm">
-                                        {index + 1} od {count}
+                                        {index + 1} od {count} (po redosledu termina)
                                     </span>
                                 </div>
 
