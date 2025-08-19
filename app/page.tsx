@@ -1,11 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import PDFPreview from "./components/PDFPreview";
 
 interface KeywordRow {
   id: string;
   text: string;
   checked: boolean;
+}
+
+interface PreviewData {
+  count: number;
+  pages: Array<{ pageNumber: number; textSnippet: string }>;
+  totalPages: number;
+  previewPdf: string;
 }
 
 export default function Home() {
@@ -18,6 +26,8 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [count, setCount] = useState<number | null>(null);
+  const [previewData, setPreviewData] = useState<PreviewData | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   function addKeywordRow(text: string) {
     if (text.trim()) {
@@ -173,6 +183,7 @@ export default function Home() {
       }
 
       setCount(data.count);
+      setPreviewData(data);
     } catch (err: unknown) {
       if (err instanceof Error) setError(err.message);
       else setError("Greška pri obradi.");
@@ -426,6 +437,40 @@ export default function Home() {
             </div>
           )}
 
+          {count !== null && previewData && (
+            <div className="mt-6 p-6 bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-300 dark:border-blue-700 rounded-xl">
+              <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+                <div className="text-center sm:text-left">
+                  <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-200 mb-2">
+                    📋 Preview rezultata
+                  </h3>
+                  <p className="text-blue-700 dark:text-blue-300">
+                    Pogledajte sadržaj stranica pre preuzimanja
+                  </p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowPreview(true)}
+                    className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+                  >
+                    <span className="text-xl">👁️</span>
+                    Pogledaj preview
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDownload}
+                    disabled={loading}
+                    className="flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-semibold rounded-lg transition-colors shadow-lg disabled:opacity-60"
+                  >
+                    <span className="text-xl">📥</span>
+                    Preuzmi filtrirani PDF
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {error && (
             <div className="mt-8 p-6 text-lg font-semibold text-red-800 bg-red-100 border-2 border-red-300 rounded-xl flex items-center gap-3">
               <span className="text-2xl">⚠️</span>
@@ -447,18 +492,6 @@ export default function Home() {
                 {loading ? "Pretražujem..." : "Pretražuj PDF"}
               </button>
 
-              {count !== null && (
-                <button
-                  type="button"
-                  onClick={handleDownload}
-                  disabled={loading}
-                  className="flex items-center justify-center gap-3 px-8 py-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white text-xl font-bold rounded-xl transition-colors shadow-lg disabled:opacity-60"
-                >
-                  <span className="text-2xl">📥</span>
-                  Preuzmi filtrirani PDF
-                </button>
-              )}
-
               <button
                 type="button"
                 onClick={() => {
@@ -469,6 +502,8 @@ export default function Home() {
                   setShowBulkInput(false);
                   setError(null);
                   setCount(null);
+                  setPreviewData(null);
+                  setShowPreview(false);
                 }}
                 className="flex items-center justify-center gap-3 px-8 py-4 bg-gray-500 hover:bg-gray-600 text-white text-lg font-semibold rounded-xl transition-colors"
               >
@@ -478,6 +513,16 @@ export default function Home() {
             </div>
           </div>
         </form>
+
+        {showPreview && previewData && (
+          <PDFPreview
+            pages={previewData.pages}
+            totalPages={previewData.totalPages}
+            count={previewData.count}
+            previewPdf={previewData.previewPdf}
+            onClose={() => setShowPreview(false)}
+          />
+        )}
       </main>
     </div>
   );

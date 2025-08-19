@@ -10,14 +10,6 @@ function normalize(text: string): string {
     return text.toLocaleLowerCase("sr").trim();
 }
 
-function parseTerms(raw: string): string[] {
-    return raw
-        .split(/\r?\n|,|;|\|/)
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0)
-        .map((s) => normalize(s));
-}
-
 export async function POST(req: NextRequest) {
     // Polyfill for Node < 22 to satisfy pdfjs-dist dependency
     if (!("withResolvers" in Promise)) {
@@ -127,8 +119,45 @@ export async function POST(req: NextRequest) {
         }
 
         if (preview) {
+            // Get text snippets from matching pages for preview
+            const pageSnippets: Array<{ pageNumber: number; textSnippet: string }> = [];
+
+            for (const pageIndex of matchingIndexes) {
+                const page = await pdf.getPage(pageIndex + 1);
+                const textContent = await page.getTextContent();
+                const fullText = textContent.items
+                    .map((item: unknown) =>
+                        item && typeof item === "object" && "str" in item && typeof (item as { str?: unknown }).str === "string"
+                            ? (item as { str: string }).str
+                            : ""
+                    )
+                    .join(" ");
+
+                // Create a snippet (first 200 characters)
+                const snippet = fullText.length > 200
+                    ? fullText.substring(0, 200) + "..."
+                    : fullText;
+
+                pageSnippets.push({
+                    pageNumber: pageIndex + 1,
+                    textSnippet: snippet
+                });
+            }
+
+            // Create a preview PDF with only matching pages
+            const srcPdf = await PDFDocument.load(arrayBufferRaw);
+            const previewPdf = await PDFDocument.create();
+            const copiedPages = await previewPdf.copyPages(srcPdf, matchingIndexes);
+            copiedPages.forEach((p) => previewPdf.addPage(p));
+            const previewBytes = await previewPdf.save();
+
             return new Response(
-                JSON.stringify({ count: matchingIndexes.length }),
+                JSON.stringify({
+                    count: matchingIndexes.length,
+                    pages: pageSnippets,
+                    totalPages: numPages,
+                    previewPdf: Buffer.from(previewBytes).toString('base64')
+                }),
                 {
                     status: 200,
                     headers: { "Content-Type": "application/json; charset=utf-8" },

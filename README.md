@@ -1,36 +1,145 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PDF Checker - Pretraga PDF dokumenata
 
-## Getting Started
+Aplikacija za pretragu PDF dokumenata prema ključnim rečima sa mogućnošću preview-a rezultata.
 
-First, run the development server:
+## Funkcionalnosti
+
+### 🔍 Pretraga po ključnim rečima
+- **Obavezne reči** - moraju biti prisutne na stranici
+- **Opcione reči** - dovoljno je da je prisutna jedna od njih
+- Podrška za srpski jezik (normalizacija teksta)
+
+### 📋 Upravljanje rečima
+- Dodavanje pojedinačnih reči
+- Bulk dodavanje više reči odjednom
+- Učitavanje reči iz .txt fajla
+- Pregledan prikaz obaveznih i opcionih reči
+
+### 👁️ Preview funkcionalnost
+- **Prikaz rezultata pretrage** pre preuzimanja
+- **Dva tab-a za preview:**
+  - 📝 **Tekstualni preview** - tekstualni snippet-ovi sa pronađenih stranica
+  - 📄 **PDF Reader** - stvarni PDF reader sa filtriranim stranicama
+- Informacije o broju stranica i ukupnom broju stranica
+- Mogućnost pregleda sadržaja pre finalnog preuzimanja
+- **PDF Reader sa više opcija:**
+  - Direktan prikaz u browser-u
+  - Otvaranje u novom tab-u
+  - Preuzimanje preview PDF-a
+  - Fallback opcije za različite browser-e
+
+### 📥 Preuzimanje
+- Generisanje novog PDF-a sa samo pronađenim stranicama
+- Automatsko preimenovanje u "filtrirano.pdf"
+
+## Kako koristiti
+
+### 1. Izaberite PDF dokument
+- Podržani su svi standardni PDF fajlovi
+
+### 2. Dodajte reči za pretragu
+- **Obavezne reči** (🟢) - moraju biti na stranici
+- **Opcione reči** (🟡) - dovoljno je da je prisutna jedna
+
+### 3. Pretražite dokument
+- Kliknite "Pretražuj PDF" da vidite koliko stranica sadrži vaše reči
+
+### 4. Pregledajte rezultate (Preview)
+- Kliknite "Pogledaj preview" da vidite sadržaj pronađenih stranica
+- **Tekstualni preview tab** - prikazuje tekstualne snippet-ove sa svake stranice
+- **PDF Reader tab** - prikazuje stvarni PDF sa filtriranim stranicama
+- Možete proveriti da li su to stvarno stranice koje tražite
+- Koristite zoom i navigaciju u PDF reader-u za bolji pregled
+
+### 5. Preuzmite filtrirani PDF
+- Kliknite "Preuzmi filtrirani PDF" da preuzmete finalni dokument
+
+## Tehnologije
+
+- **Frontend**: Next.js 15, React, TypeScript, Tailwind CSS
+- **Backend**: Next.js API Routes
+- **PDF obrada**: pdf-lib, pdfjs-dist
+- **Deployment**: Vercel
+
+## Instalacija i pokretanje
 
 ```bash
+# Instalacija dependencija
+npm install
+
+# Development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# Build za produkciju
+npm run build
+
+# Start produkcije
+npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## API Endpoints
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### POST /api/filter
+Pretražuje PDF dokument i vraća rezultate.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**Parametri:**
+- `file`: PDF fajl
+- `requiredTerms`: JSON string sa obaveznim rečima
+- `optionalTerms`: JSON string sa opcionim rečima
+- `preview`: "1" za preview, undefined za download
 
-## Learn More
+**Response (preview):**
+```json
+{
+  "count": 5,
+  "pages": [
+    {
+      "pageNumber": 3,
+      "textSnippet": "Tekst sa stranice..."
+    }
+  ],
+  "totalPages": 20
+}
+```
 
-To learn more about Next.js, take a look at the following resources:
+**Response (download):**
+- PDF fajl sa filtriranim stranicama
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Prednosti preview funkcionalnosti
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. **Provera rezultata** - vidite da li su pronađene stranice ono što tražite
+2. **Ušteda vremena** - ne preuzimate PDF dok ne proverite rezultate
+3. **Bolje korisničko iskustvo** - transparentnost u procesu filtriranja
+4. **Kontrola kvaliteta** - možete prilagoditi pretragu ako rezultati nisu zadovoljavajući
+5. **Dva načina preview-a:**
+   - **Tekstualni preview** - brz pregled sadržaja stranica
+   - **PDF Reader** - stvarni vizuelni pregled kako će izgledati finalni PDF
+6. **PDF Reader funkcionalnosti:**
+   - Zoom in/out za detaljan pregled
+   - Navigacija kroz stranice
+   - Pregled formata, slika i layout-a
+   - Provera da li su stranice pravilno filtrirane
 
-## Deploy on Vercel
+## Rešavanje problema sa PDF prikazom
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Problem: PDF Reader prikazuje belo polje
+Ako PDF Reader tab prikazuje belo polje umesto PDF-a, aplikacija automatski nudi alternativne načine pregleda:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **🔗 Otvori u novom tab-u** - otvara PDF u novom browser tab-u
+2. **📥 Preuzmi preview** - preuzima PDF za lokalni pregled
+3. **🌐 Direktno u browser-u** - pokušava direktan prikaz u trenutnom browser-u
+
+### Uzroci belog polja:
+- **Browser ograničenja** - neki browser-i ne podržavaju direktno prikazivanje PDF-a
+- **PDF veličina** - veoma veliki PDF fajlovi mogu biti spori za učitavanje
+- **Browser podešavanja** - PDF viewer može biti onemogućen u browser-u
+
+### Rešenja:
+- Koristite alternativne dugmad za pregled PDF-a
+- Proverite browser podešavanja za PDF prikaz
+- Preuzmite preview PDF za lokalni pregled
+- Koristite tekstualni preview tab za brz pregled sadržaja
+
+## Licenca
+
+MIT License
