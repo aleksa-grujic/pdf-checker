@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@ungap/with-resolvers": "^0.1.0",
-    "next": "15.4.6",
+    "next": "15.4.10",
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^1.1.1",
     "pdfjs-dist": "^4.8.69",
